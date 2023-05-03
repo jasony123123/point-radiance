@@ -16,6 +16,7 @@
     ```
     module load anaconda3/2022.5
     conda create --name pytorch3d --file conda_env.txt
+    conda activate pytorch3d
     pip install -r pip_env.txt
     ```
 3. Download nerf_synthetic datatset and unzip into this repo: https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1

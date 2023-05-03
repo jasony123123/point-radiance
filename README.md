@@ -2,6 +2,27 @@
 
 ---
 
+## Adroit setup
+
+1. Move conda to scratch partition
+    ```
+    rsync -avu $HOME/.conda /scratch/network/jcyuan/
+    rm -Rf $HOME/.conda
+    cd $HOME
+    ln -s /scratch/network/jcyuan/.conda .conda
+    checkquota
+    ```
+2. Installation
+    ```
+    module load anaconda3/2022.5
+    conda create --name pytorch3d --file conda_env.txt
+    pip install -r pip_env.txt
+    ```
+3. Download nerf_synthetic datatset and unzip into this repo: https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1
+4. Run `sbatch job.slurm` and `squeue --me` to run jobs
+
+---
+
 This code release accompanies the following paper:
 
 ### Differentiable Point-Based Radiance Fields for Efficient View Synthesis

@@ -39,6 +39,9 @@ class Trainder(object):
         self.training_time = 0
         print(self.imgout_path)
 
+        # shrinkage towards zero
+        self.position_regularization = args.position_regularization
+
     def set_onlybase(self):
         self.model.onlybase = True
         self.set_optimizer(3e-3,self.lr2)
@@ -61,7 +64,7 @@ class Trainder(object):
         return None
 
     def train(self,epoch_n=30):
-        self.logfile.write('-----------Stage Segmentation Line-----------')
+        self.logfile.write('-----------Stage Segmentation Line-----------\n')
         self.logfile.flush()
         max_psnr = 0.
         start_time = time.time()
@@ -72,6 +75,8 @@ class Trainder(object):
                 images = self.model(id)
                 loss = self.loss_fn(images[0], self.imagesgt_train[id])
                 loss = loss + self.lr_s * grad_loss(images[0], self.imagesgt_train[id])
+                # added regularizer
+                loss = loss + (self.model.vertsparam**2).mean() * self.position_regularization
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -105,9 +110,9 @@ class Trainder(object):
                     pred = images[0, ..., :3].detach().cpu().data.numpy()
                     gt = self.imagesgt[id].detach().cpu().data.numpy()
                     # set background as white for visualization
-                    mask = self.masks[id].cpu().data.numpy()
-                    pred = pred*mask+1-mask
-                    gt = gt*mask+1-mask
+                    # mask = self.masks[id].cpu().data.numpy()
+                    # pred = pred*mask+1-mask
+                    # gt = gt*mask+1-mask
                     img_gt = np.concatenate((pred,gt),1)
                     img_gt = Image.fromarray((img_gt*255).astype(np.uint8))
                     img_gt.save(os.path.join(self.imgout_path,
@@ -136,24 +141,34 @@ class Trainder(object):
 
 def solve(args):
     trainer = Trainder(args)
-    trainer.set_onlybase()
-    trainer.train(epoch_n=20)
-    trainer.remove_onlybase()
-    trainer.train()
-    for i in range(args.refine_n):
-        trainer.model.remove_out()
-        trainer.model.repeat_pts()
-        trainer.set_optimizer(args.lr1, args.lr2)
+    
+    if args.only_genpc == "N":
+        trainer.set_onlybase()
+        trainer.train(epoch_n=20)
+        trainer.remove_onlybase()
         trainer.train()
-    trainer.logfile.write('Total Training Time: '
-                  '{:.2f}s\n'.format(trainer.training_time))
-    trainer.logfile.flush()
+        for i in range(args.refine_n):
+            trainer.model.remove_out()
+            trainer.model.repeat_pts()
+            trainer.set_optimizer(args.lr1, args.lr2)
+            trainer.train()
+        trainer.logfile.write('Total Training Time: '
+                    '{:.2f}s\n'.format(trainer.training_time))
+        trainer.logfile.flush()
+
     psnr_e = trainer.test(115, 138, True)
-    fps,model_size = trainer.get_fps_modelsize()
-    print('Training time: {:.2f} s'.format(trainer.training_time))
-    print('Rendering quality: {:.2f} dB'.format(psnr_e))
-    print('Rendering speed: {:.2f} fps'.format(fps))
-    print('Model size: {:.2f} MB'.format(model_size))
+
+    if args.only_genpc == "N":
+        fps,model_size = trainer.get_fps_modelsize()
+        print('Training time: {:.2f} s'.format(trainer.training_time))
+        print('Rendering quality: {:.2f} dB'.format(psnr_e))
+        print('Rendering speed: {:.2f} fps'.format(fps))
+        print('Model size: {:.2f} MB'.format(model_size))
+        trainer.logfile.write('Training time: {:.2f} s\n'.format(trainer.training_time))
+        trainer.logfile.write('Rendering quality: {:.2f} dB\n'.format(psnr_e))
+        trainer.logfile.write('Rendering speed: {:.2f} fps\n'.format(fps))
+        trainer.logfile.write('Model size: {:.2f} MB\n'.format(model_size))
+        trainer.logfile.flush()
 
 
 if __name__ == '__main__':

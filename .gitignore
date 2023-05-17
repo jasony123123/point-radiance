@@ -2,6 +2,6 @@ dataloader/__pycache__/
 modules/__pycache__/
 nerf_synthetic-20230503T180829Z-001.zip
 nerf_synthetic/
-output/
-weight/
-slurm*
+basedir/
+runs/
+slurm*.out

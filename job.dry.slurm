@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=torch3d-test    # create a short name for your job
+#SBATCH --job-name=hotdog    # create a short name for your job
 #SBATCH --nodes=1                # node count
 #SBATCH --ntasks=1               # total number of tasks across all nodes
 #SBATCH --cpus-per-task=1        # cpu-cores per task (>1 if multi-threaded tasks)
@@ -15,4 +15,4 @@ module purge
 module load anaconda3/2022.5
 conda activate pytorch3d
 
-python main.py --datadir ./nerf_synthetic/ --dataname hotdog --basedir ./ --data_r 0.012 --splatting_r 0.015
+python main.py --datadir ./nerf_synthetic/ --dataname hotdog --data_r 0.012 --splatting_r 0.010 --basedir ./runs/20230509/hotdog/TEST --pc_jitter_amount 0.12 --filter_consistency_ratio 0.80 --posFirst YES --ridgePosition 1.00 --shAlone YES

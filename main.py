@@ -61,7 +61,9 @@ class Trainder(object):
         return None
 
     def make_coarse(self, img):
-        return torch.tanh(torch.mean(img, 2) * 5)
+        # return torch.tanh(torch.mean(img, 2) * 5)
+        # return the max along each channel
+        return torch.tanh(torch.max(img, 2)[0] * 5)
     
     def train(self,epoch_n=30, coarseLoss=False, ridgePosition=0):
         self.logfile.write('-----------Stage Segmentation Line-----------\n')

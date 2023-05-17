@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from torchvision.transforms import RandomPerspective, RandomAffine
+import random
 
 from dataloader.load_blender import load_blender_data
 
@@ -111,13 +113,26 @@ class Data():
         self.near = near
         self.far = far
 
+        # how many views a point should appear in
+        self.filter_consistency_ratio = args.filter_consistency_ratio
+        self.pc_jitter_amount = args.pc_jitter_amount
+
 
     def genpc(self):
         [H, W, focal] = self.hwf
         K = torch.tensor(self.K).cuda()
         train_n = 100
         poses = torch.tensor(self.poses).cuda()[:train_n]
-        images = torch.tensor(self.images)[:train_n]
+        images = torch.tensor(self.images)[:train_n] # (N,H,W,C)
+        
+        images = images.permute(0,3,1,2) # (N,C,H,W)
+        random.seed(42)
+        torch.manual_seed(42)
+        # jitter = RandomPerspective(self.pc_jitter_amount,1)
+        jitter = RandomAffine(degrees=90*self.pc_jitter_amount,translate=(0.5*self.pc_jitter_amount,0.5*self.pc_jitter_amount), scale=(1-0.5*self.pc_jitter_amount, 1+self.pc_jitter_amount), shear=(-90*self.pc_jitter_amount,90*self.pc_jitter_amount,-90*self.pc_jitter_amount,90*self.pc_jitter_amount))
+        images = [jitter(images[i]) for i in range(train_n)] # [(C,H,W)]
+        images = torch.stack(images) # (N,C,H,W)
+        images = images.permute(0,2,3,1) # (N,H,W,C)
 
         pc,color,N = [],[],400
         [xs,ys,zs],[xe,ye,ze] = [-2,-2,-2],[2,2,2]
@@ -140,7 +155,10 @@ class Data():
             result[(uv[..., 0] <= -1.0 - margin) + (uv[..., 0] >= 1.0 + margin)] = 0
             result[(uv[..., 1] <= -1.0 - margin) + (uv[..., 1] >= 1.0 + margin)] = 0
 
-            img = ((result>0.).sum(0)[...,0]>train_n-1).float()
+            cutoff = train_n - 1
+            cutoff = cutoff * self.filter_consistency_ratio
+            img = ((result>0.).sum(0)[...,0]>cutoff).float()
+            
             pc.append(img)
             color.append(result.mean(0))
         pc = torch.stack(pc,-1)

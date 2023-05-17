@@ -60,8 +60,13 @@ class Trainder(object):
         self.optimizer, self.lr_scheduler = optimizer, lr_scheduler
         return None
 
-    def train(self,epoch_n=30):
-        self.logfile.write('-----------Stage Segmentation Line-----------')
+    def make_coarse(self, img):
+        # return torch.tanh(torch.mean(img, 2) * 5)
+        # return the max along each channel
+        return torch.tanh(torch.max(img, 2)[0] * 5)
+    
+    def train(self,epoch_n=30, coarseLoss=False, ridgePosition=0):
+        self.logfile.write('-----------Stage Segmentation Line-----------\n')
         self.logfile.flush()
         max_psnr = 0.
         start_time = time.time()
@@ -70,8 +75,14 @@ class Trainder(object):
             ids = np.random.permutation(100)
             for id in tqdm(ids):
                 images = self.model(id)
-                loss = self.loss_fn(images[0], self.imagesgt_train[id])
-                loss = loss + self.lr_s * grad_loss(images[0], self.imagesgt_train[id])
+                if coarseLoss:
+                    loss = self.loss_fn(self.make_coarse(images[0]), self.make_coarse(self.imagesgt_train[id]))
+                else:
+                    loss = self.loss_fn(images[0], self.imagesgt_train[id])
+                    loss = loss + self.lr_s * grad_loss(images[0], self.imagesgt_train[id])
+                if ridgePosition > 0:
+                    loss = loss + (self.model.vertsparam**2).mean() * ridgePosition
+
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -105,9 +116,9 @@ class Trainder(object):
                     pred = images[0, ..., :3].detach().cpu().data.numpy()
                     gt = self.imagesgt[id].detach().cpu().data.numpy()
                     # set background as white for visualization
-                    mask = self.masks[id].cpu().data.numpy()
-                    pred = pred*mask+1-mask
-                    gt = gt*mask+1-mask
+                    # mask = self.masks[id].cpu().data.numpy()
+                    # pred = pred*mask+1-mask
+                    # gt = gt*mask+1-mask
                     img_gt = np.concatenate((pred,gt),1)
                     img_gt = Image.fromarray((img_gt*255).astype(np.uint8))
                     img_gt.save(os.path.join(self.imgout_path,
@@ -119,6 +130,30 @@ class Trainder(object):
             self.logfile.write(info + '\n')
             self.logfile.flush()
             return psnr_e
+
+    def save_visuals(self, suffix, start=100, end=115):
+        with torch.no_grad():
+            for id in (range(start, end)):
+                images = self.model(id)
+
+                pred = images[0, ..., :3].detach().cpu().data.numpy()
+                gt = self.imagesgt[id].detach().cpu().data.numpy()
+                
+                img_gt = np.concatenate((pred,gt),1)
+                img_gt = Image.fromarray((img_gt*255).astype(np.uint8))
+                img_gt.save(os.path.join(self.imgout_path,
+                        'img_{}_{}_{}.png'.format(self.dataname, id, suffix)))
+                
+                pred = self.make_coarse(torch.tensor(pred).cpu())
+                gt = self.make_coarse(torch.tensor(gt).cpu())
+
+                img_gt = np.concatenate((pred,gt),1)
+                img_gt = Image.fromarray((img_gt*255).astype(np.uint8))
+                img_gt.save(os.path.join(self.imgout_path,
+                        'img_{}_{}_{}_coarse.png'.format(self.dataname, id, suffix)))
+
+
+            
 
     def get_fps_modelsize(self):
         start_time = time.time()
@@ -136,6 +171,19 @@ class Trainder(object):
 
 def solve(args):
     trainer = Trainder(args)
+    trainer.save_visuals('1init')
+    
+    if args.posFirst == 'YES':
+        trainer.set_optimizer(0, 8e-4*5)
+        trainer.train(epoch_n=7, coarseLoss=True, ridgePosition=args.ridgePosition)
+        trainer.model.remove_out()
+        trainer.save_visuals('position')
+
+    if args.shAlone == 'YES':
+        trainer.set_optimizer(3e-3*5, 0)
+        trainer.train(epoch_n=10)
+        trainer.save_visuals('sh')
+
     trainer.set_onlybase()
     trainer.train(epoch_n=20)
     trainer.remove_onlybase()
@@ -146,14 +194,21 @@ def solve(args):
         trainer.set_optimizer(args.lr1, args.lr2)
         trainer.train()
     trainer.logfile.write('Total Training Time: '
-                  '{:.2f}s\n'.format(trainer.training_time))
+                '{:.2f}s\n'.format(trainer.training_time))
     trainer.logfile.flush()
+
     psnr_e = trainer.test(115, 138, True)
+
     fps,model_size = trainer.get_fps_modelsize()
     print('Training time: {:.2f} s'.format(trainer.training_time))
     print('Rendering quality: {:.2f} dB'.format(psnr_e))
     print('Rendering speed: {:.2f} fps'.format(fps))
     print('Model size: {:.2f} MB'.format(model_size))
+    trainer.logfile.write('Training time: {:.2f} s\n'.format(trainer.training_time))
+    trainer.logfile.write('Rendering quality: {:.2f} dB\n'.format(psnr_e))
+    trainer.logfile.write('Rendering speed: {:.2f} fps\n'.format(fps))
+    trainer.logfile.write('Model size: {:.2f} MB\n'.format(model_size))
+    trainer.logfile.flush()
 
 
 if __name__ == '__main__':

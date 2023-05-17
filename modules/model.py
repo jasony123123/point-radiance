@@ -77,6 +77,19 @@ class CoreModel(torch.nn.Module):
         if self.sh_param.grad is not None:
             self.sh_param.grad = self.sh_param.grad[idx].detach()
 
+    def remove_sh(self, threshold):
+        sh = self.sh_param
+        norm = torch.norm(sh[:, 1:], dim=1)
+        threshold = torch.quantile(norm, threshold)
+        idx = torch.where(norm > threshold)[0]
+        print('Remove {} points'.format(sh.shape[0] - idx.shape[0]))
+        self.vertsparam.data = self.vertsparam.data[idx].detach()
+        self.sh_param.data = self.sh_param.data[idx].detach()
+        if self.vertsparam.grad is not None:
+            self.vertsparam.grad = self.vertsparam.grad[idx].detach()
+        if self.sh_param.grad is not None:
+            self.sh_param.grad = self.sh_param.grad[idx].detach()
+
     def forward(self, id):
         cameras = PerspectiveCameras(focal_length=self.K[0][0] / self.K[0][2],
                                      device=device, R=-self.R[id:id + 1], T=-self.T[id:id + 1])

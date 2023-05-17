@@ -127,6 +127,15 @@ def config_parser():
     parser.add_argument("--i_video",   type=int, default=10000,
                         help='frequency of render_poses video saving')
 
+
+    parser.add_argument("--filter_consistency_ratio", type=float, default=1.0,
+                    help='filter consistency ratio')
+    parser.add_argument("--pc_jitter_amount", type=float, default=0.0,
+                    help='genpc image jitter amount')
+    parser.add_argument("--posFirst", type=str, default="NO")
+    parser.add_argument("--shAlone", type=str, default="NO")
+    parser.add_argument("--ridgePosition", type=float, default=0)
+
     # name_list = ['lego','materials','mic','ficus','drums','chair','ship','hotdog']
     # data_r_mapping = {'hotdog':0.012,'lego':0.08,'materials':0.03,'mic':0.15,'ficus':0.15,'drums':0.25,'chair':0.06,'ship':0.03}
     # splatting_mapping = {'hotdog':0.015,'lego':0.010,'materials':0.010,'mic':0.008,'ficus':0.008,'drums':0.008,'chair':0.010,'ship':0.010}

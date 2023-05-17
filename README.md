@@ -1,6 +1,16 @@
-# point-radiance
+# Point-radiance w Imperfect Masks
 
----
+[PDF](latex-writeup/cos526_report_jcyuan.pdf) | **Abstract**: *Differentiable point-based radiance fields is an alternative algorithm to Neural Radiance Fields to perform novel view synthesis. Crucially, this algorithm relies on the use of object-background masks during training. In this work, we empirically demonstrate the negative effect of imperfect masks on this algorithm's render quality through a simulation of mask corruption. We then propose a two part modification to the algorithm to enable it to handle less-than-perfect masks. We demonstrate quantitatively and qualitatively that our proposed solution has high render quality even with imperfect masks.*
+
+## Run
+
+Assuming the conda enviornment is setup, you can simply run
+
+```
+python main.py --datadir ./nerf_synthetic/ --dataname hotdog --data_r 0.012 --splatting_r 0.010 --basedir ./runs/20230509/hotdog/TEST --pc_jitter_amount 0.12 --filter_consistency_ratio 0.80 --posFirst YES --ridgePosition 1.00 --shAlone YES
+```
+
+Examples of scripts are provided in the slurm jobs.
 
 ## Adroit setup
 
@@ -23,6 +33,8 @@
 4. Run `sbatch job.slurm` and `squeue --me` to run jobs
 
 ---
+
+# Original README
 
 This code release accompanies the following paper:
 
